@@ -1,12 +1,6 @@
-namespace WalletApi.Models;
+using WalletApi.Enums;
 
-public enum TransactionType
-{
-    Deposit,
-    Withdrawal,
-    TransferIn,
-    TransferOut
-}
+namespace WalletApi.Models;
 
 public class Transaction
 {
@@ -18,6 +12,6 @@ public class Transaction
     public decimal Amount { get; set; }
     public decimal BalanceAfter { get; set; }
     public string? Description { get; set; }
-    public Guid? RelatedAccountId { get; set; } // used for transfers
+    public Guid? RelatedAccountId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

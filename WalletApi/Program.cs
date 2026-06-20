@@ -1,13 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using WalletApi.Data;
+using WalletApi.Repositories;
 using WalletApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers
 builder.Services.AddControllers();
-
-// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -15,13 +13,15 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Wallet API",
         Version = "v1",
-        Description = "API de carteira digital com contas, depósitos, saques, transferências e extrato."
+        Description = "Digital wallet API with accounts, deposits, withdrawals, transfers and statement."
     });
 });
 
-// Database (SQL Server)
 builder.Services.AddDbContext<WalletDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Repository
+builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 // Services
 builder.Services.AddScoped<IWalletService, WalletService>();

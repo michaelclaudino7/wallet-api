@@ -1,16 +1,16 @@
-using Microsoft.EntityFrameworkCore;
-using WalletApi.Data;
+using WalletApi.Enums;
 using WalletApi.Models;
+using WalletApi.Repositories;
 
 namespace WalletApi.Services;
 
 public class WalletService : IWalletService
 {
-    private readonly WalletDbContext _context;
+    private readonly IWalletRepository _repository;
 
-    public WalletService(WalletDbContext context)
+    public WalletService(IWalletRepository repository)
     {
-        _context = context;
+        _repository = repository;
     }
 
     public async Task<Account> CreateAccountAsync(string ownerName, string document)
@@ -22,29 +22,26 @@ public class WalletService : IWalletService
             Balance = 0m
         };
 
-        _context.Accounts.Add(account);
-        await _context.SaveChangesAsync();
-
-        return account;
+        return await _repository.CreateAccountAsync(account);
     }
 
     public async Task<Account?> GetAccountAsync(Guid accountId)
     {
-        return await _context.Accounts.FindAsync(accountId);
+        return await _repository.GetAccountByIdAsync(accountId);
     }
 
     public async Task<IEnumerable<Account>> GetAllAccountsAsync()
     {
-        return await _context.Accounts.ToListAsync();
+        return await _repository.GetAllAccountsAsync();
     }
 
     public async Task<Transaction> DepositAsync(Guid accountId, decimal amount, string? description)
     {
         if (amount <= 0)
-            throw new InvalidAmountException("O valor do depósito deve ser maior que zero.");
+            throw new InvalidAmountException("Deposit amount must be greater than zero.");
 
-        var account = await _context.Accounts.FindAsync(accountId)
-            ?? throw new AccountNotFoundException($"Conta {accountId} não encontrada.");
+        var account = await _repository.GetAccountByIdAsync(accountId)
+            ?? throw new AccountNotFoundException($"Account {accountId} not found.");
 
         account.Balance += amount;
 
@@ -57,8 +54,8 @@ public class WalletService : IWalletService
             Description = description
         };
 
-        _context.Transactions.Add(transaction);
-        await _context.SaveChangesAsync();
+        await _repository.AddTransactionAsync(transaction);
+        await _repository.SaveChangesAsync();
 
         return transaction;
     }
@@ -66,13 +63,13 @@ public class WalletService : IWalletService
     public async Task<Transaction> WithdrawAsync(Guid accountId, decimal amount, string? description)
     {
         if (amount <= 0)
-            throw new InvalidAmountException("O valor do saque deve ser maior que zero.");
+            throw new InvalidAmountException("Withdrawal amount must be greater than zero.");
 
-        var account = await _context.Accounts.FindAsync(accountId)
-            ?? throw new AccountNotFoundException($"Conta {accountId} não encontrada.");
+        var account = await _repository.GetAccountByIdAsync(accountId)
+            ?? throw new AccountNotFoundException($"Account {accountId} not found.");
 
         if (account.Balance < amount)
-            throw new InsufficientFundsException("Saldo insuficiente para realizar o saque.");
+            throw new InsufficientFundsException("Insufficient funds for withdrawal.");
 
         account.Balance -= amount;
 
@@ -85,8 +82,8 @@ public class WalletService : IWalletService
             Description = description
         };
 
-        _context.Transactions.Add(transaction);
-        await _context.SaveChangesAsync();
+        await _repository.AddTransactionAsync(transaction);
+        await _repository.SaveChangesAsync();
 
         return transaction;
     }
@@ -94,71 +91,56 @@ public class WalletService : IWalletService
     public async Task<(Transaction outgoing, Transaction incoming)> TransferAsync(Guid fromAccountId, Guid toAccountId, decimal amount, string? description)
     {
         if (amount <= 0)
-            throw new InvalidAmountException("O valor da transferência deve ser maior que zero.");
+            throw new InvalidAmountException("Transfer amount must be greater than zero.");
 
         if (fromAccountId == toAccountId)
-            throw new InvalidAmountException("Não é possível transferir para a mesma conta.");
+            throw new InvalidAmountException("Cannot transfer to the same account.");
 
-        var fromAccount = await _context.Accounts.FindAsync(fromAccountId)
-            ?? throw new AccountNotFoundException($"Conta de origem {fromAccountId} não encontrada.");
+        var fromAccount = await _repository.GetAccountByIdAsync(fromAccountId)
+            ?? throw new AccountNotFoundException($"Source account {fromAccountId} not found.");
 
-        var toAccount = await _context.Accounts.FindAsync(toAccountId)
-            ?? throw new AccountNotFoundException($"Conta de destino {toAccountId} não encontrada.");
+        var toAccount = await _repository.GetAccountByIdAsync(toAccountId)
+            ?? throw new AccountNotFoundException($"Destination account {toAccountId} not found.");
 
         if (fromAccount.Balance < amount)
-            throw new InsufficientFundsException("Saldo insuficiente para realizar a transferência.");
+            throw new InsufficientFundsException("Insufficient funds for transfer.");
 
-        using var dbTransaction = await _context.Database.BeginTransactionAsync();
+        fromAccount.Balance -= amount;
+        toAccount.Balance += amount;
 
-        try
+        var outgoing = new Transaction
         {
-            fromAccount.Balance -= amount;
-            toAccount.Balance += amount;
+            AccountId = fromAccount.Id,
+            Type = TransactionType.TransferOut,
+            Amount = amount,
+            BalanceAfter = fromAccount.Balance,
+            Description = description,
+            RelatedAccountId = toAccount.Id
+        };
 
-            var outgoing = new Transaction
-            {
-                AccountId = fromAccount.Id,
-                Type = TransactionType.TransferOut,
-                Amount = amount,
-                BalanceAfter = fromAccount.Balance,
-                Description = description,
-                RelatedAccountId = toAccount.Id
-            };
-
-            var incoming = new Transaction
-            {
-                AccountId = toAccount.Id,
-                Type = TransactionType.TransferIn,
-                Amount = amount,
-                BalanceAfter = toAccount.Balance,
-                Description = description,
-                RelatedAccountId = fromAccount.Id
-            };
-
-            _context.Transactions.Add(outgoing);
-            _context.Transactions.Add(incoming);
-
-            await _context.SaveChangesAsync();
-            await dbTransaction.CommitAsync();
-
-            return (outgoing, incoming);
-        }
-        catch
+        var incoming = new Transaction
         {
-            await dbTransaction.RollbackAsync();
-            throw;
-        }
+            AccountId = toAccount.Id,
+            Type = TransactionType.TransferIn,
+            Amount = amount,
+            BalanceAfter = toAccount.Balance,
+            Description = description,
+            RelatedAccountId = fromAccount.Id
+        };
+
+        await _repository.AddTransactionAsync(outgoing);
+        await _repository.AddTransactionAsync(incoming);
+        await _repository.SaveChangesAsync();
+
+        return (outgoing, incoming);
     }
 
     public async Task<IEnumerable<Transaction>> GetStatementAsync(Guid accountId)
     {
-        var accountExists = await _context.Accounts.AnyAsync(a => a.Id == accountId);
-        if (!accountExists)
-            throw new AccountNotFoundException($"Conta {accountId} não encontrada.");
+        var exists = await _repository.AccountExistsAsync(accountId);
+        if (!exists)
+            throw new AccountNotFoundException($"Account {accountId} not found.");
 
-        return await _context.Transactions
-            .Where(t => t.AccountId == accountId)
-            .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
+        return await _repository.GetStatementAsync(accountId);
     }
 }

@@ -39,7 +39,7 @@ public class AccountsController : ControllerBase
     public async Task<ActionResult<AccountResponse>> GetAccount(Guid accountId)
     {
         var account = await _walletService.GetAccountAsync(accountId);
-        if (account is null)j
+        if (account is null)
             return NotFound(new { message = $"Conta {accountId} não encontrada." });
 
         var response = new AccountResponse(account.Id, account.OwnerName, account.Document, account.Balance, account.CreatedAt);
