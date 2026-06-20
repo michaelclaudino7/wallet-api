@@ -1,10 +1,10 @@
 # 💰 Wallet API
 
-API RESTful de carteira digital desenvolvida em **C# / .NET 8**, com **Entity Framework Core**, **SQL Server** e documentação via **Swagger**.
+A RESTful API for a digital wallet built with **C# / .NET 8**, **Entity Framework Core**, **SQL Server**, and **Swagger** documentation.
 
-Permite criar contas, realizar depósitos, saques, transferências entre contas e consultar o extrato de transações.
+Supports account creation, deposits, withdrawals, transfers between accounts, and transaction statement queries.
 
-## 🛠 Tecnologias
+## 🛠 Tech Stack
 
 - C# / .NET 8
 - ASP.NET Core Web API
@@ -13,72 +13,72 @@ Permite criar contas, realizar depósitos, saques, transferências entre contas 
 - Swagger / OpenAPI
 - Docker (SQL Server via docker-compose)
 
-## 📂 Estrutura do projeto
+## 📂 Project Structure
 
 ```
 WalletApi/
 ├── WalletApi.sln
 ├── docker-compose.yml
 └── WalletApi/
-    ├── Controllers/      # Endpoints da API
-    ├── Models/           # Entidades de domínio
-    ├── DTOs/             # Objetos de request/response
+    ├── Controllers/      # API endpoints
+    ├── Models/           # Domain entities
+    ├── DTOs/             # Request/response objects
     ├── Data/             # DbContext (EF Core)
-    ├── Services/         # Regras de negócio
-    └── Program.cs        # Configuração e startup
+    ├── Services/         # Business logic
+    └── Program.cs        # App configuration and startup
 ```
 
-## ▶️ Como rodar localmente
+## ▶️ Getting Started
 
-### Pré-requisitos
+### Prerequisites
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- [Docker](https://www.docker.com/) (para rodar o SQL Server) ou uma instância local de SQL Server
+- [Docker](https://www.docker.com/)
 
-### Passo a passo
+### Steps
 
-1. **Suba o banco de dados com Docker:**
+1. **Start the database with Docker:**
    ```bash
    docker-compose up -d
    ```
 
-2. **Restaure os pacotes do projeto:**
+2. **Restore project packages:**
    ```bash
    cd WalletApi
    dotnet restore
    ```
 
-3. **Crie e aplique as migrations:**
+3. **Apply migrations:**
    ```bash
-   dotnet tool install --global dotnet-ef
+   dotnet tool install --global dotnet-ef --version 8.0.10
    dotnet ef migrations add InitialCreate
    dotnet ef database update
    ```
 
-4. **Rode a API:**
+4. **Run the API:**
    ```bash
    dotnet run
    ```
 
-5. **Acesse o Swagger** no navegador:
+5. **Access Swagger UI:**
    ```
    http://localhost:5080/swagger
    ```
 
-## 📌 Endpoints principais
+## 📌 Endpoints
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/api/accounts` | Cria uma nova conta |
-| GET | `/api/accounts` | Lista todas as contas |
-| GET | `/api/accounts/{id}` | Busca uma conta específica |
-| GET | `/api/accounts/{id}/statement` | Extrato de transações |
-| POST | `/api/accounts/{id}/deposit` | Realiza um depósito |
-| POST | `/api/accounts/{id}/withdraw` | Realiza um saque |
-| POST | `/api/accounts/{id}/transfer` | Transfere valores entre contas |
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/accounts` | Create a new account |
+| GET | `/api/accounts` | List all accounts |
+| GET | `/api/accounts/{id}` | Get account by ID |
+| GET | `/api/accounts/{id}/statement` | Get transaction statement |
+| POST | `/api/accounts/{id}/deposit` | Make a deposit |
+| POST | `/api/accounts/{id}/withdraw` | Make a withdrawal |
+| POST | `/api/accounts/{id}/transfer` | Transfer between accounts |
 
-## 🧪 Exemplo de uso
+## 🧪 Usage Examples
 
-**Criar conta:**
+**Create account:**
 ```json
 POST /api/accounts
 {
@@ -87,25 +87,21 @@ POST /api/accounts
 }
 ```
 
-**Depositar:**
+**Deposit:**
 ```json
 POST /api/accounts/{id}/deposit
 {
   "amount": 500.00,
-  "description": "Depósito inicial"
+  "description": "Initial deposit"
 }
 ```
 
-**Transferir:**
+**Transfer:**
 ```json
 POST /api/accounts/{id}/transfer
 {
-  "toAccountId": "guid-da-conta-destino",
+  "toAccountId": "target-account-guid",
   "amount": 100.00,
-  "description": "Pagamento"
+  "description": "Payment"
 }
 ```
-
-## 📄 Licença
-
-Projeto livre para fins de estudo e portfólio.
